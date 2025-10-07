@@ -12,6 +12,8 @@ void setup() {
   // Power: PB_14: GPIO out (12)
   pinMode(12, OUTPUT);
 
+  digitalWrite(16, HIGH);
+
 }
 
 void loop() {
