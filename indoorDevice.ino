@@ -1,4 +1,25 @@
 #include "LoRaRadio.h"
+#include "TimerMillis.h"
+
+// maybe use clock interrupt to send last data to computer (serial output)
+// maybe use clock interrupt to listen to computer
+
+TimerMillis writeToComputerClock;
+TimerMillis readFromComputerClock;
+
+char dataComputer = 'b';
+
+void writeToComputerClockHandler(void){
+  Serial.print("Writing to computer: ");
+  Serial.println(dataComputer);
+}
+
+void readFromComputerClockHandler(void){
+  if (Serial.available() > 0){
+    dataComputer = Serial.read();
+    Serial.println(dataComputer); //would not actually print in finished system
+  }
+}
 
 static void receiveCallback(void){
   if ((LoRaRadio.parsePacket() == 6) &&
@@ -59,6 +80,10 @@ void setup() {
 
   LoRaRadio.onTransmit(transmitCallback);
   LoRaRadio.onReceive(receiveCallback);
+  
+  writeToComputerClock.start(writeToComputerClockHandler, 10000, 30000);
+  readFromComputerClock.start(readFromComputerClockHandler, 15000, 60000);
+
   LoRaRadio.receive(500);
 }
 
