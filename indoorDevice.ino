@@ -10,7 +10,8 @@ TimerMillis readFromComputerClock;
 int pirEvents = 0;
 int temperature = 0;
 int moistureLevel = 0;
-int buzzerCondition = 0; // init on 0: buzzer off
+int buzzerState = 0; // init on 0: buzzer off
+int buzzerOverride = 0;
 int dry = 0;
 int wet = 100;
 
@@ -35,7 +36,7 @@ void writeToComputerClockHandler(void){
 void readFromComputerClockHandler(void){
   // send string to indicate receiving
   Serial.println("r");
-  delay(50);
+  delay(2000);
   if (Serial.available() > 0){
     dataComputer = Serial.read();
     Serial.println(dataComputer); //would not actually print in finished system
@@ -47,14 +48,15 @@ void readFromComputerClockHandler(void){
 
 
 static void receiveCallback(void){
-  if ((LoRaRadio.parsePacket() == 8) &&
+  if ((LoRaRadio.parsePacket() == 9) &&
       (LoRaRadio.read() == 'S') &&
       (LoRaRadio.read() == 'P'))
   {
     pirEvents = LoRaRadio.read();
     moistureLevel = LoRaRadio.read();
     temperature = LoRaRadio.read();
-    buzzerCondition = LoRaRadio.read();
+    buzzerState = LoRaRadio.read();
+    buzzerOverride = LoRaRadio.read();
     wet = LoRaRadio.read();
     dry = LoRaRadio.read();
     //Serial.println("Received signal: ");
@@ -64,7 +66,7 @@ static void receiveCallback(void){
     //Serial.println(moistureLevel);
     // got signal so send confirm
 
-    Serial.println(", "+String(moistureLevel)+", "+String(temperature)+", "+String(pirEvents)+", "+String(buzzerCondition)+", "+String(dry)+", "+String(wet));
+    Serial.println(","+String(moistureLevel)+","+String(temperature)+","+String(pirEvents)+","+String(buzzerState)+","+String(buzzerOverride)+","+String(dry)+","+String(wet));
     //if (!LoRaRadio.busy()){
       LoRaRadio.beginPacket();
       LoRaRadio.write('O');
