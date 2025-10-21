@@ -10,7 +10,8 @@ bool sending = false;
 int detected;
 int moistureLevel;
 int temperature;
-int buzzerCondition; 
+int buzzerState; 
+int buzzerOverride;
 int calibrationState; 
 int dry;
 int wet;
@@ -122,7 +123,8 @@ static void send ( void ) {
       LoRaRadio.write(detected);
       LoRaRadio.write(moistureLevel);
       LoRaRadio.write(temperature);
-      LoRaRadio.write(buzzerCondition);
+      LoRaRadio.write(buzzerState);
+      LoRaRadio.write(buzzerOverride);
       LoRaRadio.write(wet);
       LoRaRadio.write(dry);
       LoRaRadio.endPacket();
@@ -136,6 +138,14 @@ static void send ( void ) {
       (LoRaRadio.read() == 'K')){
         // revceived confirmation
         dataComputer = LoRaRadio.read();
+        // i : buzzer on
+        // o : buzzer off
+        if (dataComputer == 'i'){
+          buzzerState = 1;
+        }
+        else if (dataComputer == 'o'){
+          buzzerState = 0;
+        }
         Serial.println("Indoor device received last message");
         Serial.println(dataComputer);
       }
@@ -160,7 +170,7 @@ void pirInterupt(void){
   STM32L0.wakeup();
   detected = detected + 1;
 
-  if (buzzerCondition){
+  if (!buzzerOverride && buzzerState){
     Serial.println("BUZZ");
     // turn power for buzzer on
     //digitalWrite(7, HIGH);
@@ -192,7 +202,8 @@ void setup( void ) {
 
     detected = 0;
     moistureLevel = 0;
-    buzzerCondition = 0; // init as OFF
+    buzzerState = 0; // init as Off
+    buzzerOverride = 0;
     temperature = 0;
     calibrationState = 0;
     dry = 0;
@@ -248,8 +259,8 @@ void loop() {
   }
 
   if (buzzerFlag){
-    Serial.println("buzzer");
-    buzzerCondition = !buzzerCondition;
+    Serial.println("buzzer override");
+    buzzerOverride = !buzzerOverride;
     buzzerFlag = 0;
   }
 
@@ -265,7 +276,9 @@ void loop() {
   Serial.print("Wet: ");
   Serial.println(wet);
   Serial.print("Buzzer Status: ");
-  Serial.println(buzzerCondition);
+  Serial.println(buzzerState);
+  Serial.print("Buzzer Override: ");
+  Serial.println(buzzerOverride);
 
   sending = true;
   LoRaRadio.receive(10);
