@@ -8,8 +8,13 @@
 TimerMillis writeToComputerClock;
 TimerMillis readFromComputerClock;
 
+char temp1 = 0;
+char temp2 = 0;
+int rVal = 0;
+float vsig = 0;
+
 int pirEvents = 0;
-int temperature = 0;
+long temperature = 0;
 int moistureLevel = 0;
 int buzzerState = 0; // init on 0: buzzer off
 int buzzerOverride = 0;
@@ -21,15 +26,56 @@ char readVal;
 
 // for summary: EEPROM len 4096 (send dry, wet, buzzerState, buzzerOverride from data point)
 int buildingSummary; // 1 or 0
-int tempAvg; // addr 0
-int tempMin; // addr 1
-int tempMax; // addr 2
-int moistureAvg; // addr 3
-int moistureMin; // addr 4
-int moistureMax; // addr 5
-int numOfDetec; // addr 6
-int numOfDatapoints; // addr 7
-int estabMinMax; // addr 8
+
+// need to break down tempAvg into bytes: long is 4 bytes
+long tempAvg; // addr 0
+long tempMin; // addr 1
+long tempMax; // addr 2
+
+char tempAvg_b1;
+int tempAvg_b1_addr = 0;
+char tempAvg_b2;
+int tempAvg_b2_addr = 1;
+char tempAvg_b3;
+int tempAvg_b3_addr = 2;
+char tempAvg_b4;
+int tempAvg_b4_addr = 3;
+
+char tempMin_b1;
+int tempMin_b1_addr = 4;
+char tempMin_b2;
+int tempMin_b2_addr = 5;
+char tempMin_b3;
+int tempMin_b3_addr = 6;
+char tempMin_b4;
+int tempMin_b4_addr = 7;
+
+char tempMax_b1;
+int tempMax_b1_addr = 8;
+char tempMax_b2;
+int tempMax_b2_addr = 9;
+char tempMax_b3;
+int tempMax_b3_addr = 10;
+char tempMax_b4;
+int tempMax_b4_addr = 11;
+
+int moistureAvg; 
+int moistureAvg_addr = 12;
+
+int moistureMin; 
+int moistureMin_addr = 13;
+
+int moistureMax; 
+int moistureMax_addr = 14;
+
+int numOfDetec; 
+int numOfDetec_addr = 15;
+
+int numOfDatapoints; 
+int numOfDatapoints_addr = 16;
+
+int estabMinMax; 
+int estabMinMax_addr = 17;
 
 int needToCommunicate;
 
@@ -52,6 +98,11 @@ void writeToComputerClockHandler(void){
 
 
 void readFromComputerClockHandler(void){
+  // Clear buffer
+  while (Serial.available() > 0){
+    Serial.read();
+  }
+
   // send string to indicate receiving
   Serial.println("r");
   delay(2000);
@@ -66,13 +117,14 @@ void readFromComputerClockHandler(void){
 
 
 static void receiveCallback(void){
-  if ((LoRaRadio.parsePacket() == 9) &&
+  if ((LoRaRadio.parsePacket() == 10) &&
       (LoRaRadio.read() == 'S') &&
       (LoRaRadio.read() == 'P'))
   {
     pirEvents = LoRaRadio.read();
     moistureLevel = LoRaRadio.read();
-    temperature = LoRaRadio.read();
+    temp1 = LoRaRadio.read();
+    temp2 = LoRaRadio.read();
     buzzerState = LoRaRadio.read();
     buzzerOverride = LoRaRadio.read();
     wet = LoRaRadio.read();
@@ -90,8 +142,19 @@ static void receiveCallback(void){
     LoRaRadio.write(dataComputer);
     LoRaRadio.endPacket();
     
+    rVal = 0;
+    rVal |= ((int)temp1) << 8;
+    rVal |= ((int)temp2);
+
+    vsig = (3.3/1023)*rVal;
+    temperature = (vsig)/((3.3 - vsig)/10000);
     // check if using summary
     if (buildingSummary){
+      // Clear buffer
+      while (Serial.available() > 0){
+        Serial.read();
+      }
+
       // need to send summary if reply
       Serial.println("s");
 
@@ -110,6 +173,11 @@ static void receiveCallback(void){
       }
     }
     else{
+      // Clear buffer
+      while (Serial.available() > 0){
+        Serial.read();
+      }
+
       Serial.println("d");
       // just send data if reply
       delay(2000);
@@ -130,15 +198,32 @@ static void receiveCallback(void){
     // write to mem is needed
     if (buildingSummary){
       // add to summary
-      tempAvg = EEPROM.read(0); // addr 0
-      tempMin = EEPROM.read(1);// addr 1
-      tempMax = EEPROM.read(2); // addr 2
-      moistureAvg = EEPROM.read(3); // addr 3
-      moistureMin = EEPROM.read(4); // addr 4
-      moistureMax = EEPROM.read(5); // addr 5
-      numOfDetec = EEPROM.read(6); // addr 6
-      numOfDatapoints = EEPROM.read(7); // addr 7
-      estabMinMax = EEPROM.read(8); // addr 8
+      tempAvg_b1 = EEPROM.read(tempAvg_b1_addr);
+      tempAvg_b2 = EEPROM.read(tempAvg_b2_addr);
+      tempAvg_b3 = EEPROM.read(tempAvg_b3_addr);
+      tempAvg_b4 = EEPROM.read(tempAvg_b4_addr);
+
+      tempMin_b1 = EEPROM.read(tempMin_b1_addr);
+      tempMin_b2 = EEPROM.read(tempMin_b2_addr);
+      tempMin_b3 = EEPROM.read(tempMin_b3_addr);
+      tempMin_b4 = EEPROM.read(tempMin_b4_addr);
+
+      tempMax_b1 = EEPROM.read(tempMax_b1_addr);
+      tempMax_b2 = EEPROM.read(tempMax_b2_addr);
+      tempMax_b3 = EEPROM.read(tempMax_b3_addr);
+      tempMax_b4 = EEPROM.read(tempMax_b4_addr);
+
+      moistureAvg = EEPROM.read(moistureAvg_addr);
+      moistureMin = EEPROM.read(moistureMin_addr);
+      moistureMax = EEPROM.read(moistureMax_addr);
+      numOfDetec = EEPROM.read(numOfDetec_addr); 
+      numOfDatapoints = EEPROM.read(numOfDatapoints_addr); 
+      estabMinMax = EEPROM.read(estabMinMax_addr);
+
+      // rebuild tempAvg, tempMin, tempMax
+      tempAvg = ((long)tempAvg_b1<<24)|((long)tempAvg_b2<<16)|((long)tempAvg_b3<<8)|(long)tempAvg_b4;
+      tempMin = ((long)tempMin_b1<<24)|((long)tempMin_b2<<16)|((long)tempMin_b3<<8)|(long)tempMin_b4;
+      tempMax = ((long)tempMax_b1<<24)|((long)tempMax_b2<<16)|((long)tempMax_b3<<8)|(long)tempMax_b4;
 
       numOfDetec = numOfDetec + pirEvents;
       numOfDatapoints = numOfDatapoints + 1;
@@ -179,16 +264,44 @@ static void receiveCallback(void){
         }
       }
 
+      // break down tempAvg, tempMin, tempMax
+      tempAvg_b1 = (tempAvg >> 24);
+      tempAvg_b2 = (tempAvg >> 16);
+      tempAvg_b3 = (tempAvg >> 8);
+      tempAvg_b4 = (tempAvg);
+
+      tempMin_b1 = (tempMin >> 24);
+      tempMin_b2 = (tempMin >> 16);
+      tempMin_b3 = (tempMin >> 8);
+      tempMin_b4 = (tempMin);
+
+      tempMax_b1 = (tempMax >> 24);
+      tempMax_b2 = (tempMax >> 16);
+      tempMax_b3 = (tempMax >> 8);
+      tempMax_b4 = (tempMax);
+
       // write to memory
-      EEPROM.write(0, tempAvg); // addr 0
-      EEPROM.write(1, tempMin);// addr 1
-      EEPROM.write(2, tempMax); // addr 2
-      EEPROM.write(3, moistureAvg); // addr 3
-      EEPROM.write(4, moistureMin); // addr 4
-      EEPROM.write(5, moistureMax); // addr 5
-      EEPROM.write(6, numOfDetec); // addr 6
-      EEPROM.write(7, numOfDatapoints); // addr 7
-      EEPROM.write(8, 1); // add 8, min and max have values
+      EEPROM.write(tempAvg_b1_addr, tempAvg_b1);
+      EEPROM.write(tempAvg_b2_addr, tempAvg_b2);
+      EEPROM.write(tempAvg_b3_addr, tempAvg_b3);
+      EEPROM.write(tempAvg_b4_addr, tempAvg_b4);
+
+      EEPROM.write(tempMin_b1_addr, tempMin_b1);
+      EEPROM.write(tempMin_b2_addr, tempMin_b2);
+      EEPROM.write(tempMin_b3_addr, tempMin_b3);
+      EEPROM.write(tempMin_b4_addr, tempMin_b4);
+
+      EEPROM.write(tempMax_b1_addr, tempMax_b1);
+      EEPROM.write(tempMax_b2_addr, tempMax_b2);
+      EEPROM.write(tempMax_b3_addr, tempMax_b3);
+      EEPROM.write(tempMax_b4_addr, tempMax_b4);
+
+      EEPROM.write(moistureAvg_addr, moistureAvg); // addr 3
+      EEPROM.write(moistureMin_addr, moistureMin); // addr 4
+      EEPROM.write(moistureMax_addr, moistureMax); // addr 5
+      EEPROM.write(numOfDetec_addr, numOfDetec); // addr 6
+      EEPROM.write(numOfDatapoints_addr, numOfDatapoints); // addr 7
+      EEPROM.write(estabMinMax_addr, 1); // add 8, min and max have values
     }
     if (needToCommunicate){
       if (buildingSummary){
@@ -198,15 +311,9 @@ static void receiveCallback(void){
         // communicated with computer: clear summary and set to false
         buildingSummary = 0;
 
-        EEPROM.write(0, 0); // addr 0
-        EEPROM.write(1, 0);// addr 1
-        EEPROM.write(2, 0); // addr 2
-        EEPROM.write(3, 0); // addr 3
-        EEPROM.write(4, 0); // addr 4
-        EEPROM.write(5, 0); // addr 5
-        EEPROM.write(6, 0); // addr 6
-        EEPROM.write(7, 0); // addr 7
-        EEPROM.write(8, 0); // addr 8, the min and max are null again
+        for (int i = 0; i <= 17; i++){
+          EEPROM.write(i, 0);
+        }
       }
       else{
         // send stnd data
@@ -252,21 +359,39 @@ void setup() {
   // set up memory system
   buildingSummary = 0; // 1 or 0
   needToCommunicate = 0; // 1 or 0
-  tempAvg = EEPROM.read(0); // addr 0
-  tempMin = EEPROM.read(1);// addr 1
-  tempMax = EEPROM.read(2); // addr 2
-  moistureAvg = EEPROM.read(3); // addr 3
-  moistureMin = EEPROM.read(4); // addr 4
-  moistureMax = EEPROM.read(5); // addr 5
-  numOfDetec = EEPROM.read(6); // addr 6
-  numOfDatapoints = EEPROM.read(7); // addr 7
-  estabMinMax = EEPROM.read(8); // addr 8
+  
+  tempAvg_b1 = EEPROM.read(tempAvg_b1_addr);
+  tempAvg_b2 = EEPROM.read(tempAvg_b2_addr);
+  tempAvg_b3 = EEPROM.read(tempAvg_b3_addr);
+  tempAvg_b4 = EEPROM.read(tempAvg_b4_addr);
+
+  tempMin_b1 = EEPROM.read(tempMin_b1_addr);
+  tempMin_b2 = EEPROM.read(tempMin_b2_addr);
+  tempMin_b3 = EEPROM.read(tempMin_b3_addr);
+  tempMin_b4 = EEPROM.read(tempMin_b4_addr);
+
+  tempMax_b1 = EEPROM.read(tempMax_b1_addr);
+  tempMax_b2 = EEPROM.read(tempMax_b2_addr);
+  tempMax_b3 = EEPROM.read(tempMax_b3_addr);
+  tempMax_b4 = EEPROM.read(tempMax_b4_addr);
+
+  moistureAvg = EEPROM.read(moistureAvg_addr);
+  moistureMin = EEPROM.read(moistureMin_addr);
+  moistureMax = EEPROM.read(moistureMax_addr);
+  numOfDetec = EEPROM.read(numOfDetec_addr);
+  numOfDatapoints = EEPROM.read(numOfDatapoints_addr);
+  estabMinMax = EEPROM.read(estabMinMax_addr);
+
+  // rebuild tempAvg, tempMin, tempMax
+  tempAvg = ((long)tempAvg_b1<<24)|((long)tempAvg_b2<<16)|((long)tempAvg_b3<<8)|(long)tempAvg_b4;
+  tempMin = ((long)tempMin_b1<<24)|((long)tempMin_b2<<16)|((long)tempMin_b3<<8)|(long)tempMin_b4;
+  tempMax = ((long)tempMax_b1<<24)|((long)tempMax_b2<<16)|((long)tempMax_b3<<8)|(long)tempMax_b4;
 
   LoRaRadio.onTransmit(transmitCallback);
   LoRaRadio.onReceive(receiveCallback);
 
   //writeToComputerClock.start(writeToComputerClockHandler, 5000, 5000);
-  readFromComputerClock.start(readFromComputerClockHandler, 15000, 30000);
+  readFromComputerClock.start(readFromComputerClockHandler, 15000, 10000);
 
   LoRaRadio.receive(500);
 }
