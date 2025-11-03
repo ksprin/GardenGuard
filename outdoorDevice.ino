@@ -19,6 +19,8 @@ int wet;
 int sleepTime;
 int pirStatus;
 int pirFlag;
+char temp1;
+char temp2;
 
 int releaseTime;
 int pressTime;
@@ -126,7 +128,8 @@ static void send ( void ) {
       LoRaRadio.write('P');
       LoRaRadio.write(detected);
       LoRaRadio.write(moistureLevel);
-      LoRaRadio.write(temperature);
+      LoRaRadio.write(temp1);
+      LoRaRadio.write(temp2);
       LoRaRadio.write(buzzerState);
       LoRaRadio.write(buzzerOverride);
       LoRaRadio.write(wet);
@@ -217,7 +220,7 @@ void setup( void ) {
     pressTime = 0;
     calibrateFlag = 0;
     buzzerFlag = 0;
-    sleepTime = 20000;
+    sleepTime = 15000;
     pirStatus = 0;
     pirFlag = 0;
 
@@ -283,7 +286,9 @@ void loop() {
   temperature = analogRead(18);
   digitalWrite(12, LOW);
   digitalWrite(7, LOW);
-  
+
+  temp1 = (char) (temperature>>8);
+  temp2 = (char) (temperature);
 
   Serial.print("Moisture Data: ");
   Serial.println(moistureLevel);
