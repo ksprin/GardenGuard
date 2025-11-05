@@ -8,8 +8,11 @@
 // rework to maybe not have delay in interupt, create finite state machine
 // switch to flag system with interupts
 
+// new commands: send s more often
+
 TimerMillis writeToComputerClock;
 TimerMillis readFromComputerClock;
+TimerMillis checkIfThere;
 
 char temp1 = 0;
 char temp2 = 0;
@@ -87,6 +90,8 @@ int needToCommunicate;
 
 int readBuzzerFlag; // flag to know if when to communicate with computer about buzzer
 int receiveFlag; // flag to know if something was received
+int checkIfThereFlag;
+
 // Char codes
 // x - null
 // r - read from computer serial port
@@ -94,6 +99,10 @@ int receiveFlag; // flag to know if something was received
 
 void readFromComputerClockHandler(void){
   readBuzzerFlag = 1;
+}
+
+void checkIfThereClockHandler(void){
+  checkIfThereFlag = 1;
 }
 
 static void receiveCallback(void){
@@ -168,6 +177,7 @@ void setup() {
   needToCommunicate = 0; // 1 or 0
   readBuzzerFlag = 0;
   receiveFlag = 0;
+  checkIfThereFlag = 0;
   
   tempAvg_b1 = EEPROM.read(tempAvg_b1_addr);
   tempAvg_b2 = EEPROM.read(tempAvg_b2_addr);
@@ -203,6 +213,7 @@ void setup() {
 
   //writeToComputerClock.start(writeToComputerClockHandler, 5000, 5000);
   readFromComputerClock.start(readFromComputerClockHandler, 15000, 10000);
+  checkIfThere.start(checkIfThereClockHandler, 5000, 5000);
 
   LoRaRadio.receive(500); // might be a concern
 
@@ -210,28 +221,49 @@ void setup() {
 
 void loop() {
   // all writing and waiting for computer
+  if (checkIfThereFlag){
+    // send check if there
+    // Clear buffer
+    while (Serial.available() > 0){
+      Serial.read();
+    }
+
+    // need to send summary if reply
+    Serial.println("[GardenGuard]h");
+    delay(1000);
+    if (Serial.available() > 0){
+      readVal = Serial.read(); // clear the buffer
+      
+      // set flags to know the computer was checked for and reoutput the read
+      Serial.println("[GardenGuard]h|"+String(readVal));
+      checkIfThereFlag = 0;
+      // disable check if there clock
+      checkIfThere.stop();
+      delay(500); // delay after making connection
+    }
+  }
 
   // For resetting buzzer
-  if (readBuzzerFlag){
+  if (readBuzzerFlag && !checkIfThereFlag){
     // Clear buffer
     while (Serial.available() > 0){
       Serial.read();
     }
 
     // send string to indicate receiving
-    Serial.println("r");
+    Serial.println("[GardenGuard]r");
     delay(1000);
     if (Serial.available() > 0){
       dataComputer = Serial.read();
-      Serial.println(dataComputer); // confirm
+      Serial.println("[GardenGuard]r|"+String(readVal));
     }
     else{
-      Serial.println("n");
+      Serial.println("[GardenGuard]r|n");
     }
     readBuzzerFlag = 0;
   }
 
-  if (receiveFlag){
+  if (receiveFlag && !checkIfThereFlag){
     // disable lora: need to minimize wait time
     LoRaRadio.receive(1500);
     //LoRaRadio.end();
@@ -243,12 +275,12 @@ void loop() {
       }
 
       // need to send summary if reply
-      Serial.println("s");
+      Serial.println("[GardenGuard]s");
 
       delay(1000);
       if (Serial.available() > 0){
         readVal = Serial.read(); // clear the buffer
-        
+
         // set flags for summary and send
         needToCommunicate = 1;
         buildingSummary = 1;
@@ -257,6 +289,10 @@ void loop() {
         // set flags for summary
         buildingSummary = 1;
         needToCommunicate = 0;
+
+        //restart clock to check if there
+        checkIfThere.start(checkIfThereClockHandler, 5000, 5000);
+        checkIfThereFlag = 1;
       }
     }
     else{
@@ -265,7 +301,7 @@ void loop() {
         Serial.read();
       }
 
-      Serial.println("d");
+      Serial.println("[GardenGuard]d");
       // just send data if reply
       delay(1000);
       if (Serial.available() > 0){
@@ -279,6 +315,10 @@ void loop() {
         // set flags for summary
         buildingSummary = 1;
         needToCommunicate = 0;
+
+        //restart clock to check if there
+        checkIfThere.start(checkIfThereClockHandler, 5000, 5000);
+        checkIfThereFlag = 1;
       }
     }
 
@@ -400,7 +440,7 @@ void loop() {
     if (needToCommunicate){
       if (buildingSummary){
         // send summary
-        Serial.println(","+String(moistureLevel)+","+String(temperature)+","+String(pirEvents)+","+String(buzzerState)+","+String(buzzerOverride)+","+String(dry)+","+String(wet)+","+String(tempAvg)+","+String(tempMin)+","+String(tempMax)+","+String(moistureAvg)+","+String(moistureMin)+","+String(moistureMax)+","+String(numOfDetec)+","+String(numOfDatapoints));
+        Serial.println("[GardenGuard]s|"+String(moistureLevel)+","+String(temperature)+","+String(pirEvents)+","+String(buzzerState)+","+String(buzzerOverride)+","+String(dry)+","+String(wet)+","+String(tempAvg)+","+String(tempMin)+","+String(tempMax)+","+String(moistureAvg)+","+String(moistureMin)+","+String(moistureMax)+","+String(numOfDetec)+","+String(numOfDatapoints));
 
         // communicated with computer: clear summary and set to false
         buildingSummary = 0;
@@ -411,7 +451,7 @@ void loop() {
       }
       else{
         // send stnd data
-        Serial.println(","+String(moistureLevel)+","+String(temperature)+","+String(pirEvents)+","+String(buzzerState)+","+String(buzzerOverride)+","+String(dry)+","+String(wet));
+        Serial.println("[GardenGuard]d|"+String(moistureLevel)+","+String(temperature)+","+String(pirEvents)+","+String(buzzerState)+","+String(buzzerOverride)+","+String(dry)+","+String(wet));
       }
 
     }
