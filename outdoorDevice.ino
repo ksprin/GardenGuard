@@ -287,9 +287,11 @@ void loop() {
     }
     // calc diff for sleep time
     remainingSleep = sleepTime - (millis() - lastSchedule);
+    Serial.println(remainingSleep);
     if (remainingSleep > sleepTime || remainingSleep < 0){
       remainingSleep = sleepTime;
     }
+    pirFlag = 0;
   }
   else{
     remainingSleep = sleepTime;
