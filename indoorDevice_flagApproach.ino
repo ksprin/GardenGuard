@@ -173,7 +173,7 @@ void setup() {
   LoRaRadio.setLnaBoost(true);
 
   // set up memory system
-  buildingSummary = 0; // 1 or 0
+  buildingSummary = 1; // 1 or 0
   needToCommunicate = 0; // 1 or 0
   readBuzzerFlag = 0;
   receiveFlag = 0;
@@ -356,29 +356,16 @@ void loop() {
       numOfDetec = numOfDetec + pirEvents;
       numOfDatapoints = numOfDatapoints + 1;
 
-      //only add to avg if detected
-      if (pirEvents > 0){
-        dataPointForAvg = dataPointForAvg + 1;
-        if (tempAvg == 0){
-          tempAvg = temperature;
-        }
-        else{
-          tempAvg = tempAvg * (dataPointForAvg -1)/dataPointForAvg + temperature / dataPointForAvg;
-        }
-        if (moistureAvg == 0){
-          moistureAvg = moistureLevel;
-        }
-        else{
-          moistureAvg = moistureAvg * (dataPointForAvg -1)/dataPointForAvg + moistureLevel / dataPointForAvg;
-        }
-      }
-
       if (estabMinMax == 0){
         // min and max are null so put in intit values
         tempMin = temperature;
         tempMax = temperature;
         moistureMin = moistureLevel;
         moistureMax = moistureLevel;
+        tempAvg = temperature;
+        moistureAvg = moistureLevel;
+
+        estabMinMax = 1;
       }
       else{
         // min and max can be updated
@@ -394,6 +381,28 @@ void loop() {
         }
         else if (moistureLevel > moistureMax){
           moistureMax = moistureLevel;
+        }
+      }
+      //only add to avg if not detected
+      if (pirEvents == 0){
+        dataPointForAvg = dataPointForAvg + 1;
+        if (tempAvg == 0){
+          tempAvg = temperature;
+        }
+        else{
+          tempAvg = tempAvg * (dataPointForAvg -1)/dataPointForAvg + temperature / dataPointForAvg;
+          if (tempAvg == 0){
+            tempAvg = temperature;
+          }
+        }
+        if (moistureAvg == 0){
+          moistureAvg = moistureLevel;
+        }
+        else{
+          moistureAvg = moistureAvg * (dataPointForAvg -1)/dataPointForAvg + moistureLevel / dataPointForAvg;
+          if (moistureAvg == 0){
+            moistureAvg = moistureLevel;
+          }
         }
       }
 
@@ -440,6 +449,7 @@ void loop() {
     if (needToCommunicate){
       if (buildingSummary){
         // send summary
+        // 0,13625,0,1,1,0,100,0,1481,13957,0,0,5,0,3
         Serial.println("[GardenGuard]s|"+String(moistureLevel)+","+String(temperature)+","+String(pirEvents)+","+String(buzzerState)+","+String(buzzerOverride)+","+String(dry)+","+String(wet)+","+String(tempAvg)+","+String(tempMin)+","+String(tempMax)+","+String(moistureAvg)+","+String(moistureMin)+","+String(moistureMax)+","+String(numOfDetec)+","+String(numOfDatapoints));
 
         // communicated with computer: clear summary and set to false
