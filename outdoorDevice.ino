@@ -21,6 +21,7 @@ int pirStatus;
 int pirFlag;
 char temp1;
 char temp2;
+int overrideSwitch;
 
 int releaseTime;
 int pressTime;
@@ -111,11 +112,7 @@ void userButton( void ){
 
     int diff =  releaseTime - pressTime;
     //calc press time: accept if over 0.25 second
-    if (diff >= 60 && diff < 2000){
-      // short press
-      buzzerFlag = !buzzerFlag;
-    }
-    else if (diff >= 2000){
+    if (diff >= 60){
       // long press
       calibrateFlag = !calibrateFlag;
     }
@@ -218,6 +215,7 @@ void setup( void ) {
     sleepTime = 20000;
     pirStatus = 0;
     pirFlag = 0;
+    overrideSwitch = 0;
 
     nextSchedule = 0;
     lastSchedule = 0;
@@ -242,6 +240,13 @@ void setup( void ) {
     // Moisture Sensor Power: PB_14: GPIO out (12)
     pinMode(12, OUTPUT);
 
+    // Switch power: PB_13: GPIO out (13)
+    pinMode(13, OUTPUT);
+
+    // Switch in: PB_12: GPIO in (9)
+    // Buzzer is override (off) with on (switch high)
+    pinMode(9, INPUT);
+
     // User Button
     pinMode(6, INPUT);
 
@@ -253,6 +258,7 @@ void setup( void ) {
     attachInterrupt(11, pirInterupt, FALLING);
     attachInterrupt(6, userButton, CHANGE);
     digitalWrite(PIN_LED2, LOW);
+    digitalWrite(13, HIGH);
     //clock.start(timerInterupt, 0, 30000);
 
 }
@@ -263,6 +269,8 @@ void loop() {
   Serial.print("detected: ");
   Serial.println(detected);
 
+  overrideSwitch = digitalRead(9);
+
   if (calibrateFlag){
     // call calibrate method
     Serial.println("calibrate");
@@ -270,10 +278,14 @@ void loop() {
     calibrateFlag = 0;
   }
 
-  if (buzzerFlag){
+  if (overrideSwitch){
     Serial.println("buzzer override");
-    buzzerOverride = !buzzerOverride;
+    buzzerOverride = 1;
     buzzerFlag = 0;
+  }
+  else{
+    buzzerOverride = 0;
+    buzzerFlag = 1;
   }
 
   if (pirFlag){
