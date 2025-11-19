@@ -1,6 +1,8 @@
 #include "LoRaRadio.h"
 #include "TimerMillis.h"
 #include <EEPROM.h>
+//#include <ArduinoSTL.h>
+//#include <map>
 
 // maybe use clock interrupt to send last data to computer (serial output)
 // maybe use clock interrupt to listen to computer
@@ -13,11 +15,20 @@
 TimerMillis writeToComputerClock;
 TimerMillis readFromComputerClock;
 TimerMillis checkIfThere;
-
+//td::map<int, int> m = {{1, 100},{5, 200}, {10, 300}};
+//std::map<int,int> temp_convert = {{335676.0, -40}, {314180.0, -39}, {294194.0, -38}};
 char temp1 = 0;
 char temp2 = 0;
 int rVal = 0;
-float vsig = 0;
+int RT0 = 10000;
+int B = 3977;
+int R = 10000;
+float T0 = 298.15;
+long RT = 0;
+float VR = 0.0;
+float ln = 0.0;
+float TX = 0.0;
+float VRT = 0.0;
 
 int pirEvents = 0;
 long temperature = 0;
@@ -85,6 +96,9 @@ int estabMinMax_addr = 17;
 
 int needToCommunicate;
 
+int moistureRaw = 0;
+float moistureLog = 0.0;
+
 int readBuzzerFlag; // flag to know if when to communicate with computer about buzzer
 int receiveFlag; // flag to know if something was received
 int checkIfThereFlag;
@@ -108,7 +122,7 @@ static void receiveCallback(void){
       (LoRaRadio.read() == 'P'))
   {
     pirEvents = LoRaRadio.read();
-    moistureLevel = LoRaRadio.read();
+    moistureRaw = LoRaRadio.read();
     temp1 = LoRaRadio.read();
     temp2 = LoRaRadio.read();
     buzzerState = LoRaRadio.read();
@@ -128,8 +142,17 @@ static void receiveCallback(void){
     rVal |= ((int)temp1) << 8;
     rVal |= ((int)temp2);
 
-    vsig = (3.3/1023)*rVal;
-    temperature = (vsig)/((3.3 - vsig)/10000);
+    VRT = (3.3/1023)*rVal;
+    VR = 3.3 - VRT;
+    RT = VRT / (VR / R);
+    ln = log(RT / RT0);
+    TX = (1 / ((ln / B) + (1 / T0)));
+    temperature = TX - 273.15;
+
+    //float linVal = pow(2.71828, (float)83/102.3);
+    float moistureLog = 0.14886*log(moistureRaw)+log(49.72607);
+    int moistureLevel = (int)pow(2.718, moistureLog);
+
     receiveFlag = 1;
   }
   else{
@@ -192,13 +215,12 @@ void setup() {
   tempAvg = ((long)tempAvg_b1<<24)|((long)tempAvg_b2<<16)|((long)tempAvg_b3<<8)|(long)tempAvg_b4;
   tempMin = ((long)tempMin_b1<<24)|((long)tempMin_b2<<16)|((long)tempMin_b3<<8)|(long)tempMin_b4;
   tempMax = ((long)tempMax_b1<<24)|((long)tempMax_b2<<16)|((long)tempMax_b3<<8)|(long)tempMax_b4;
-
+  
   LoRaRadio.onTransmit(transmitCallback);
   LoRaRadio.onReceive(receiveCallback);
 
   readFromComputerClock.start(readFromComputerClockHandler, 15000, 20000);
   checkIfThere.start(checkIfThereClockHandler, 5000, 5000);
-
   LoRaRadio.receive(500); // might be a concern
 
 }
