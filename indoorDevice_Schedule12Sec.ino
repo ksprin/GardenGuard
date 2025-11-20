@@ -43,13 +43,13 @@ char readVal;
 int buildingSummary; // 1 or 0
 
 // need to break down tempAvg into bytes: long is 4 bytes
-float tempAvg; // addr 0
-float tempMin; // addr 1
-float tempMax; // addr 2
+int tempAvg; // addr 0
+int tempMin; // addr 1
+int tempMax; // addr 2
 
 //long is 4 bytes
 //float is 4 bytes
-
+/*
 //char tempAvg_b1;
 int tempAvg_b1_addr = 0;
 //char tempAvg_b2;
@@ -91,6 +91,13 @@ union {
   byte as_byte[4];
   float as_float;
 } tempMax_union;
+*/
+
+int tempAvg_addr = 1;
+
+int tempMin_addr = 4;
+
+int tempMax_addr = 8;
 
 int moistureAvg; 
 int moistureAvg_addr = 12;
@@ -120,6 +127,7 @@ float wetLog = 0.0;
 
 int dryRaw = 0;
 float dryLog = 0.0;
+
 
 int readBuzzerFlag; // flag to know if when to communicate with computer about buzzer
 int receiveFlag; // flag to know if something was received
@@ -216,7 +224,7 @@ void setup() {
   readBuzzerFlag = 0;
   receiveFlag = 0;
   checkIfThereFlag = 0;
-  
+  /*
   tempAvg_union.as_byte[0] = EEPROM.read(tempAvg_b1_addr);
   tempAvg_union.as_byte[1] = EEPROM.read(tempAvg_b2_addr);
   tempAvg_union.as_byte[2]= EEPROM.read(tempAvg_b3_addr);
@@ -231,6 +239,11 @@ void setup() {
   tempMax_union.as_byte[1] = EEPROM.read(tempMax_b2_addr);
   tempMax_union.as_byte[2] = EEPROM.read(tempMax_b3_addr);
   tempMax_union.as_byte[3] = EEPROM.read(tempMax_b4_addr);
+  */
+
+  tempAvg = EEPROM.read(tempAvg_addr);
+  tempMin = EEPROM.read(tempMin_addr);
+  tempMax = EEPROM.read(tempMax_addr);
 
   moistureAvg = EEPROM.read(moistureAvg_addr);
   moistureMin = EEPROM.read(moistureMin_addr);
@@ -240,9 +253,9 @@ void setup() {
   estabMinMax = EEPROM.read(estabMinMax_addr);
 
   // rebuild tempAvg, tempMin, tempMax
-  tempAvg = tempAvg_union.as_float;
-  tempMin = tempMin_union.as_float;
-  tempMax = tempMax_union.as_float;
+  //tempAvg = tempAvg_union.as_float;
+  //tempMin = tempMin_union.as_float;
+  //tempMax = tempMax_union.as_float;
   //tempAvg = (float)((tempAvg_b1<<24)|(tempAvg_b2<<16)|(tempAvg_b3<<8)|tempAvg_b4);
   //tempMin = (float)((tempMin_b1<<24)|(tempMin_b2<<16)|(tempMin_b3<<8)|tempMin_b4);
   //tempMax = (float)((tempMax_b1<<24)|(tempMax_b2<<16)|(tempMax_b3<<8)|tempMax_b4);
@@ -270,13 +283,24 @@ void loop() {
     delay(1000);
     if (Serial.available() > 0){
       readVal = Serial.read(); // clear the buffer
+      if (readVal == 'y'){
+
       
-      // set flags to know the computer was checked for and reoutput the read
-      Serial.println("[GardenGuard]h|"+String(readVal));
-      checkIfThereFlag = 0;
-      // disable check if there clock
-      checkIfThere.stop();
-      delay(500); // delay after making connection
+        // set flags to know the computer was checked for and reoutput the read
+        Serial.println("[GardenGuard]h|"+String(readVal));
+        checkIfThereFlag = 0;
+        // disable check if there clock
+        checkIfThere.stop();
+        delay(500); // delay after making connection
+      }
+      else{
+        buildingSummary = 1;
+        needToCommunicate = 0;
+      }
+    }
+    else{
+      buildingSummary = 1;
+      needToCommunicate = 0;
     }
   }
 
@@ -298,6 +322,8 @@ void loop() {
       Serial.println("[GardenGuard]r|n");
       //restart clock to check if there
       buildingSummary = 1;
+      needToCommunicate = 0;
+      //estabMinMax = 0;
       checkIfThere.start(checkIfThereClockHandler, 5000, 5000);
       checkIfThereFlag = 1;
     }
@@ -362,167 +388,177 @@ void loop() {
         checkIfThereFlag = 1;
       }
     }
+  }
 
     // write to mem is needed
-    if (buildingSummary){
-      // add to summary
-      tempAvg_union.as_byte[0] = EEPROM.read(tempAvg_b1_addr);
-      tempAvg_union.as_byte[1] = EEPROM.read(tempAvg_b2_addr);
-      tempAvg_union.as_byte[2]= EEPROM.read(tempAvg_b3_addr);
-      tempAvg_union.as_byte[3] = EEPROM.read(tempAvg_b4_addr);
+  if (receiveFlag && buildingSummary){
+    // add to summary
+    /*
+    tempAvg_union.as_byte[0] = EEPROM.read(tempAvg_b1_addr);
+    tempAvg_union.as_byte[1] = EEPROM.read(tempAvg_b2_addr);
+    tempAvg_union.as_byte[2]= EEPROM.read(tempAvg_b3_addr);
+    tempAvg_union.as_byte[3] = EEPROM.read(tempAvg_b4_addr);
 
-      tempMin_union.as_byte[0] = EEPROM.read(tempMin_b1_addr);
-      tempMin_union.as_byte[1] = EEPROM.read(tempMin_b2_addr);
-      tempMin_union.as_byte[2] = EEPROM.read(tempMin_b3_addr);
-      tempMin_union.as_byte[3] = EEPROM.read(tempMin_b4_addr);
+    tempMin_union.as_byte[0] = EEPROM.read(tempMin_b1_addr);
+    tempMin_union.as_byte[1] = EEPROM.read(tempMin_b2_addr);
+    tempMin_union.as_byte[2] = EEPROM.read(tempMin_b3_addr);
+    tempMin_union.as_byte[3] = EEPROM.read(tempMin_b4_addr);
 
-      tempMax_union.as_byte[0] = EEPROM.read(tempMax_b1_addr);
-      tempMax_union.as_byte[1] = EEPROM.read(tempMax_b2_addr);
-      tempMax_union.as_byte[2] = EEPROM.read(tempMax_b3_addr);
-      tempMax_union.as_byte[3] = EEPROM.read(tempMax_b4_addr);
-      /*
-      tempAvg_b1 = EEPROM.read(tempAvg_b1_addr);
-      tempAvg_b2 = EEPROM.read(tempAvg_b2_addr);
-      tempAvg_b3 = EEPROM.read(tempAvg_b3_addr);
-      tempAvg_b4 = EEPROM.read(tempAvg_b4_addr);
+    tempMax_union.as_byte[0] = EEPROM.read(tempMax_b1_addr);
+    tempMax_union.as_byte[1] = EEPROM.read(tempMax_b2_addr);
+    tempMax_union.as_byte[2] = EEPROM.read(tempMax_b3_addr);
+    tempMax_union.as_byte[3] = EEPROM.read(tempMax_b4_addr);
+    /*
+    tempAvg_b1 = EEPROM.read(tempAvg_b1_addr);
+    tempAvg_b2 = EEPROM.read(tempAvg_b2_addr);
+    tempAvg_b3 = EEPROM.read(tempAvg_b3_addr);
+    tempAvg_b4 = EEPROM.read(tempAvg_b4_addr);
 
-      tempMin_b1 = EEPROM.read(tempMin_b1_addr);
-      tempMin_b2 = EEPROM.read(tempMin_b2_addr);
-      tempMin_b3 = EEPROM.read(tempMin_b3_addr);
-      tempMin_b4 = EEPROM.read(tempMin_b4_addr);
+    tempMin_b1 = EEPROM.read(tempMin_b1_addr);
+    tempMin_b2 = EEPROM.read(tempMin_b2_addr);
+    tempMin_b3 = EEPROM.read(tempMin_b3_addr);
+    tempMin_b4 = EEPROM.read(tempMin_b4_addr);
 
-      tempMax_b1 = EEPROM.read(tempMax_b1_addr);
-      tempMax_b2 = EEPROM.read(tempMax_b2_addr);
-      tempMax_b3 = EEPROM.read(tempMax_b3_addr);
-      tempMax_b4 = EEPROM.read(tempMax_b4_addr);
-      */
-      tempAvg = tempAvg_union.as_float;
-      tempMin = tempMin_union.as_float;
-      tempMax = tempMax_union.as_float;
+    tempMax_b1 = EEPROM.read(tempMax_b1_addr);
+    tempMax_b2 = EEPROM.read(tempMax_b2_addr);
+    tempMax_b3 = EEPROM.read(tempMax_b3_addr);
+    tempMax_b4 = EEPROM.read(tempMax_b4_addr);
+    
+    tempAvg = tempAvg_union.as_float;
+    tempMin = tempMin_union.as_float;
+    tempMax = tempMax_union.as_float;
+    */
+    tempAvg = EEPROM.read(tempAvg_addr);
+    tempMin = EEPROM.read(tempMin_addr);
+    tempMax = EEPROM.read(tempMax_addr); 
 
-      moistureAvg = EEPROM.read(moistureAvg_addr);
-      moistureMin = EEPROM.read(moistureMin_addr);
-      moistureMax = EEPROM.read(moistureMax_addr);
-      numOfDetec = EEPROM.read(numOfDetec_addr); 
-      numOfDatapoints = EEPROM.read(numOfDatapoints_addr); 
-      estabMinMax = EEPROM.read(estabMinMax_addr);
+    moistureAvg = EEPROM.read(moistureAvg_addr);
+    moistureMin = EEPROM.read(moistureMin_addr);
+    moistureMax = EEPROM.read(moistureMax_addr);
+    numOfDetec = EEPROM.read(numOfDetec_addr); 
+    numOfDatapoints = EEPROM.read(numOfDatapoints_addr); 
+    estabMinMax = EEPROM.read(estabMinMax_addr);
 
-      // rebuild tempAvg, tempMin, tempMax
-      //tempAvg = (float)((tempAvg_b1<<24)|(tempAvg_b2<<16)|(tempAvg_b3<<8)|tempAvg_b4);
-      //tempMin = (float)((tempMin_b1<<24)|(tempMin_b2<<16)|(tempMin_b3<<8)|tempMin_b4);
-      //tempMax = (float)((tempMax_b1<<24)|(tempMax_b2<<16)|(tempMax_b3<<8)|tempMax_b4);
+    // rebuild tempAvg, tempMin, tempMax
+    //tempAvg = (float)((tempAvg_b1<<24)|(tempAvg_b2<<16)|(tempAvg_b3<<8)|tempAvg_b4);
+    //tempMin = (float)((tempMin_b1<<24)|(tempMin_b2<<16)|(tempMin_b3<<8)|tempMin_b4);
+    //tempMax = (float)((tempMax_b1<<24)|(tempMax_b2<<16)|(tempMax_b3<<8)|tempMax_b4);
 
-      numOfDetec = numOfDetec + pirEvents;
-      numOfDatapoints = numOfDatapoints + 1;
+    numOfDetec = numOfDetec + pirEvents;
+    numOfDatapoints = numOfDatapoints + 1;
 
-      if (estabMinMax == 0){
-        // min and max are null so put in intit values
-        tempMin = temperature;
-        tempMax = temperature;
+    if (estabMinMax == 0){
+      // min and max are null so put in intit values
+      tempMin = (int)temperature;
+      tempMax = (int)temperature;
+      moistureMin = moistureLevel;
+      moistureMax = moistureLevel;
+      tempAvg = (int)temperature;
+      moistureAvg = moistureLevel;
+
+      estabMinMax = 1;
+    }
+    else{
+      // min and max can be updated
+      if (temperature < tempMin){
+        tempMin = (int)temperature;
+      }
+      if (temperature > tempMax){
+        tempMax = (int)temperature;
+      }
+
+      if (moistureLevel < moistureMin){
         moistureMin = moistureLevel;
+      }
+      else if (moistureLevel > moistureMax){
         moistureMax = moistureLevel;
-        tempAvg = temperature;
-        moistureAvg = moistureLevel;
-
-        estabMinMax = 1;
       }
-      else{
-        // min and max can be updated
-        if (temperature < tempMin){
-          tempMin = temperature;
-        }
-        else if (temperature > tempMax){
-          tempMax = temperature;
-        }
-
-        if (moistureLevel < moistureMin){
-          moistureMin = moistureLevel;
-        }
-        else if (moistureLevel > moistureMax){
-          moistureMax = moistureLevel;
-        }
-      }
-      
+    }
+    
+    if (tempAvg == 0){
+      tempAvg = temperature;
+    }
+    else{
+      tempAvg = round((float)tempAvg * ((float)numOfDatapoints -1)/(float)numOfDatapoints + temperature / (float)numOfDatapoints);
       if (tempAvg == 0){
-        tempAvg = temperature;
+        tempAvg = (int)temperature;
       }
-      else{
-        tempAvg = tempAvg * (numOfDatapoints -1)/numOfDatapoints + temperature / numOfDatapoints;
-        if (tempAvg == 0){
-          tempAvg = temperature;
-        }
-      }
+    }
+    if (moistureAvg == 0){
+      moistureAvg = moistureLevel;
+    }
+    else{
+      moistureAvg = round((float)moistureAvg * ((float)numOfDatapoints -1)/(float)numOfDatapoints + (float)moistureLevel / (float)numOfDatapoints);
       if (moistureAvg == 0){
         moistureAvg = moistureLevel;
       }
-      else{
-        moistureAvg = moistureAvg * (numOfDatapoints -1)/numOfDatapoints + moistureLevel / numOfDatapoints;
-        if (moistureAvg == 0){
-          moistureAvg = moistureLevel;
-        }
-      }
-      
-      /*
-      // break down tempAvg, tempMin, tempMax
-      tempAvg_b1 = (tempAvg >> 24);
-      tempAvg_b2 = (tempAvg >> 16);
-      tempAvg_b3 = (tempAvg >> 8);
-      tempAvg_b4 = (tempAvg);
-
-      tempMin_b1 = (tempMin >> 24);
-      tempMin_b2 = (tempMin >> 16);
-      tempMin_b3 = (tempMin >> 8);
-      tempMin_b4 = (tempMin);
-
-      tempMax_b1 = (tempMax >> 24);
-      tempMax_b2 = (tempMax >> 16);
-      tempMax_b3 = (tempMax >> 8);
-      tempMax_b4 = (tempMax);
-      */
-
-      // write to memory
-      EEPROM.write(tempAvg_b1_addr, tempAvg_union.as_byte[0]);
-      EEPROM.write(tempAvg_b2_addr, tempAvg_union.as_byte[1]);
-      EEPROM.write(tempAvg_b3_addr, tempAvg_union.as_byte[2]);
-      EEPROM.write(tempAvg_b4_addr, tempAvg_union.as_byte[3]);
-
-      EEPROM.write(tempMin_b1_addr, tempMin_union.as_byte[0]);
-      EEPROM.write(tempMin_b2_addr, tempMin_union.as_byte[1]);
-      EEPROM.write(tempMin_b3_addr, tempMin_union.as_byte[2]);
-      EEPROM.write(tempMin_b4_addr, tempMin_union.as_byte[3]);
-
-      EEPROM.write(tempMax_b1_addr, tempMax_union.as_byte[0]);
-      EEPROM.write(tempMax_b2_addr, tempMax_union.as_byte[1]);
-      EEPROM.write(tempMax_b3_addr, tempMax_union.as_byte[2]);
-      EEPROM.write(tempMax_b4_addr, tempMax_union.as_byte[3]);
-
-      EEPROM.write(moistureAvg_addr, moistureAvg); // addr 3
-      EEPROM.write(moistureMin_addr, moistureMin); // addr 4
-      EEPROM.write(moistureMax_addr, moistureMax); // addr 5
-      EEPROM.write(numOfDetec_addr, numOfDetec); // addr 6
-      EEPROM.write(numOfDatapoints_addr, numOfDatapoints); // addr 7
-      EEPROM.write(estabMinMax_addr, 1); // add 8, min and max have values
-
     }
-    if (needToCommunicate){
-      if (buildingSummary){
-        // send summary
-        // 0,13625,0,1,1,0,100,0,1481,13957,0,0,5,0,3
-        Serial.println("[GardenGuard]s|"+String(moistureLevel)+","+String(temperature)+","+String(pirEvents)+","+String(buzzerState)+","+String(buzzerOverride)+","+String(dry)+","+String(wet)+","+String(tempAvg)+","+String(tempMin)+","+String(tempMax)+","+String(moistureAvg)+","+String(moistureMin)+","+String(moistureMax)+","+String(numOfDetec)+","+String(numOfDatapoints));
+    
+    /*
+    // break down tempAvg, tempMin, tempMax
+    tempAvg_b1 = (tempAvg >> 24);
+    tempAvg_b2 = (tempAvg >> 16);
+    tempAvg_b3 = (tempAvg >> 8);
+    tempAvg_b4 = (tempAvg);
 
-        // communicated with computer: clear summary and set to false
-        buildingSummary = 0;
+    tempMin_b1 = (tempMin >> 24);
+    tempMin_b2 = (tempMin >> 16);
+    tempMin_b3 = (tempMin >> 8);
+    tempMin_b4 = (tempMin);
 
-        for (int i = 0; i <= 17; i++){
-          EEPROM.write(i, 0);
-        }
-      }
-      else{
-        // send stnd data
-        Serial.println("[GardenGuard]d|"+String(moistureLevel)+","+String(temperature)+","+String(pirEvents)+","+String(buzzerState)+","+String(buzzerOverride)+","+String(dry)+","+String(wet));
-      }
+    tempMax_b1 = (tempMax >> 24);
+    tempMax_b2 = (tempMax >> 16);
+    tempMax_b3 = (tempMax >> 8);
+    tempMax_b4 = (tempMax);
+    */
 
-    }
-    receiveFlag = 0;
+    // write to memory
+    /*
+    EEPROM.write(tempAvg_b1_addr, tempAvg_union.as_byte[0]);
+    EEPROM.write(tempAvg_b2_addr, tempAvg_union.as_byte[1]);
+    EEPROM.write(tempAvg_b3_addr, tempAvg_union.as_byte[2]);
+    EEPROM.write(tempAvg_b4_addr, tempAvg_union.as_byte[3]);
+
+    EEPROM.write(tempMin_b1_addr, tempMin_union.as_byte[0]);
+    EEPROM.write(tempMin_b2_addr, tempMin_union.as_byte[1]);
+    EEPROM.write(tempMin_b3_addr, tempMin_union.as_byte[2]);
+    EEPROM.write(tempMin_b4_addr, tempMin_union.as_byte[3]);
+
+    EEPROM.write(tempMax_b1_addr, tempMax_union.as_byte[0]);
+    EEPROM.write(tempMax_b2_addr, tempMax_union.as_byte[1]);
+    EEPROM.write(tempMax_b3_addr, tempMax_union.as_byte[2]);
+    EEPROM.write(tempMax_b4_addr, tempMax_union.as_byte[3]);
+    */
+    EEPROM.write(tempAvg_addr, tempAvg);
+    EEPROM.write(tempMin_addr, tempMin);
+    EEPROM.write(tempMax_addr, tempMax);
+    EEPROM.write(moistureAvg_addr, moistureAvg); // addr 3
+    EEPROM.write(moistureMin_addr, moistureMin); // addr 4
+    EEPROM.write(moistureMax_addr, moistureMax); // addr 5
+    EEPROM.write(numOfDetec_addr, numOfDetec); // addr 6
+    EEPROM.write(numOfDatapoints_addr, numOfDatapoints); // addr 7
+    EEPROM.write(estabMinMax_addr, estabMinMax); // add 8, min and max have values
+
   }
+  if (receiveFlag && needToCommunicate){
+    if (buildingSummary){
+      // send summary
+      // 0,13625,0,1,1,0,100,0,1481,13957,0,0,5,0,3
+      Serial.println("[GardenGuard]s|"+String(moistureLevel)+","+String(temperature)+","+String(pirEvents)+","+String(buzzerState)+","+String(buzzerOverride)+","+String(dry)+","+String(wet)+","+String(tempAvg)+","+String(tempMin)+","+String(tempMax)+","+String(moistureAvg)+","+String(moistureMin)+","+String(moistureMax)+","+String(numOfDetec)+","+String(numOfDatapoints));
+
+      // communicated with computer: clear summary and set to false
+      buildingSummary = 0;
+
+      for (int i = 0; i <= 17; i++){
+        EEPROM.write(i, 0);
+      }
+      estabMinMax = 0;
+    }
+    else{
+      // send stnd data
+      Serial.println("[GardenGuard]d|"+String(moistureLevel)+","+String(temperature)+","+String(pirEvents)+","+String(buzzerState)+","+String(buzzerOverride)+","+String(dry)+","+String(wet));
+    }
+
+  }
+  receiveFlag = 0;
 }
