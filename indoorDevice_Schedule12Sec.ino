@@ -36,6 +36,8 @@ int buzzerOverride = 0;
 int dry = 0;
 int wet = 100;
 
+int waitDataTime = 150;
+
 char dataComputer = 'x';
 char readVal;
 
@@ -95,27 +97,41 @@ union {
 
 int tempAvg_addr = 1;
 
-int tempMin_addr = 4;
+int tempMin_addr = 2;
 
-int tempMax_addr = 8;
+int tempMax_addr = 3;
+
+//int numOfDatapoints; 
+//int numOfDatapoints_spacesMemTotal = 1;
+//int numOfDatapoints_spacesMemTotal_addr = 9;
+//int numOfDatapoints_spacesMemMAX =  EEPROM.length() - 1;
+//int numOfDatapoints_start_addr = 10;
+
+int numOfDatapoints_b1_addr = 9;
+int numOfDatapoints_b2_addr = 10;
+int numOfDatapoints_b3_addr = 11;
+int numOfDatapoints_b4_addr = 12;
+
+union {
+  byte as_byte[4];
+  long as_long;
+} numOfDatapoints;
+
 
 int moistureAvg; 
-int moistureAvg_addr = 12;
+int moistureAvg_addr = 4;
 
 int moistureMin; 
-int moistureMin_addr = 13;
+int moistureMin_addr = 5;
 
 int moistureMax; 
-int moistureMax_addr = 14;
+int moistureMax_addr = 6;
 
 int numOfDetec; 
-int numOfDetec_addr = 15;
-
-int numOfDatapoints; 
-int numOfDatapoints_addr = 16;
+int numOfDetec_addr = 7;
 
 int estabMinMax; 
-int estabMinMax_addr = 17;
+int estabMinMax_addr = 8;
 
 int needToCommunicate;
 
@@ -240,6 +256,10 @@ void setup() {
   tempMax_union.as_byte[2] = EEPROM.read(tempMax_b3_addr);
   tempMax_union.as_byte[3] = EEPROM.read(tempMax_b4_addr);
   */
+  numOfDatapoints.as_byte[0] = EEPROM.read(numOfDatapoints_b1_addr);
+  numOfDatapoints.as_byte[1] = EEPROM.read(numOfDatapoints_b2_addr);
+  numOfDatapoints.as_byte[2] = EEPROM.read(numOfDatapoints_b3_addr);
+  numOfDatapoints.as_byte[3] = EEPROM.read(numOfDatapoints_b4_addr);
 
   tempAvg = EEPROM.read(tempAvg_addr);
   tempMin = EEPROM.read(tempMin_addr);
@@ -249,7 +269,7 @@ void setup() {
   moistureMin = EEPROM.read(moistureMin_addr);
   moistureMax = EEPROM.read(moistureMax_addr);
   numOfDetec = EEPROM.read(numOfDetec_addr);
-  numOfDatapoints = EEPROM.read(numOfDatapoints_addr);
+  //numOfDatapoints = EEPROM.read(numOfDatapoints_addr);
   estabMinMax = EEPROM.read(estabMinMax_addr);
 
   // rebuild tempAvg, tempMin, tempMax
@@ -280,7 +300,7 @@ void loop() {
 
     // need to send summary if reply
     Serial.println("[GardenGuard]h");
-    delay(1000);
+    delay(waitDataTime);
     if (Serial.available() > 0){
       readVal = Serial.read(); // clear the buffer
       if (readVal == 'y'){
@@ -291,7 +311,7 @@ void loop() {
         checkIfThereFlag = 0;
         // disable check if there clock
         checkIfThere.stop();
-        delay(500); // delay after making connection
+        delay(50); // delay after making connection
       }
       else{
         buildingSummary = 1;
@@ -313,7 +333,7 @@ void loop() {
 
     // send string to indicate receiving
     Serial.println("[GardenGuard]r");
-    delay(1000);
+    delay(waitDataTime);
     if (Serial.available() > 0){
       dataComputer = Serial.read();
       Serial.println("[GardenGuard]r|"+String(dataComputer));
@@ -332,7 +352,7 @@ void loop() {
 
   if (receiveFlag && !checkIfThereFlag){
     // disable lora: need to minimize wait time
-    LoRaRadio.receive(1500);
+    //LoRaRadio.receive(200);
     //LoRaRadio.end();
     // check if using summary
     if (buildingSummary){
@@ -344,7 +364,7 @@ void loop() {
       // need to send summary if reply
       Serial.println("[GardenGuard]s");
 
-      delay(1000);
+      delay(waitDataTime);
       if (Serial.available() > 0){
         readVal = Serial.read(); // clear the buffer
 
@@ -370,7 +390,7 @@ void loop() {
 
       Serial.println("[GardenGuard]d");
       // just send data if reply
-      delay(1000);
+      delay(waitDataTime);
       if (Serial.available() > 0){
         readVal = Serial.read(); // clear the buffer
         
@@ -393,6 +413,7 @@ void loop() {
     // write to mem is needed
   if (receiveFlag && buildingSummary){
     // add to summary
+    LoRaRadio.receive(75);
     /*
     tempAvg_union.as_byte[0] = EEPROM.read(tempAvg_b1_addr);
     tempAvg_union.as_byte[1] = EEPROM.read(tempAvg_b2_addr);
@@ -428,6 +449,11 @@ void loop() {
     tempMin = tempMin_union.as_float;
     tempMax = tempMax_union.as_float;
     */
+    numOfDatapoints.as_byte[0] = EEPROM.read(numOfDatapoints_b1_addr);
+    numOfDatapoints.as_byte[1] = EEPROM.read(numOfDatapoints_b2_addr);
+    numOfDatapoints.as_byte[2] = EEPROM.read(numOfDatapoints_b3_addr);
+    numOfDatapoints.as_byte[3] = EEPROM.read(numOfDatapoints_b4_addr);
+
     tempAvg = EEPROM.read(tempAvg_addr);
     tempMin = EEPROM.read(tempMin_addr);
     tempMax = EEPROM.read(tempMax_addr); 
@@ -436,7 +462,7 @@ void loop() {
     moistureMin = EEPROM.read(moistureMin_addr);
     moistureMax = EEPROM.read(moistureMax_addr);
     numOfDetec = EEPROM.read(numOfDetec_addr); 
-    numOfDatapoints = EEPROM.read(numOfDatapoints_addr); 
+    //numOfDatapoints = EEPROM.read(numOfDatapoints_addr); 
     estabMinMax = EEPROM.read(estabMinMax_addr);
 
     // rebuild tempAvg, tempMin, tempMax
@@ -445,7 +471,7 @@ void loop() {
     //tempMax = (float)((tempMax_b1<<24)|(tempMax_b2<<16)|(tempMax_b3<<8)|tempMax_b4);
 
     numOfDetec = numOfDetec + pirEvents;
-    numOfDatapoints = numOfDatapoints + 1;
+    numOfDatapoints.as_long = numOfDatapoints.as_long + 1;
 
     if (estabMinMax == 0){
       // min and max are null so put in intit values
@@ -479,7 +505,7 @@ void loop() {
       tempAvg = temperature;
     }
     else{
-      tempAvg = round((float)tempAvg * ((float)numOfDatapoints -1)/(float)numOfDatapoints + temperature / (float)numOfDatapoints);
+      tempAvg = round((float)tempAvg * ((float)numOfDatapoints.as_long -1)/(float)numOfDatapoints.as_long + temperature / (float)numOfDatapoints.as_long);
       if (tempAvg == 0){
         tempAvg = (int)temperature;
       }
@@ -488,7 +514,7 @@ void loop() {
       moistureAvg = moistureLevel;
     }
     else{
-      moistureAvg = round((float)moistureAvg * ((float)numOfDatapoints -1)/(float)numOfDatapoints + (float)moistureLevel / (float)numOfDatapoints);
+      moistureAvg = round((float)moistureAvg * ((float)numOfDatapoints.as_long -1)/(float)numOfDatapoints.as_long + (float)moistureLevel / (float)numOfDatapoints.as_long);
       if (moistureAvg == 0){
         moistureAvg = moistureLevel;
       }
@@ -529,6 +555,11 @@ void loop() {
     EEPROM.write(tempMax_b3_addr, tempMax_union.as_byte[2]);
     EEPROM.write(tempMax_b4_addr, tempMax_union.as_byte[3]);
     */
+    EEPROM.write(numOfDatapoints_b1_addr, numOfDatapoints.as_byte[0]);
+    EEPROM.write(numOfDatapoints_b2_addr, numOfDatapoints.as_byte[1]);
+    EEPROM.write(numOfDatapoints_b3_addr, numOfDatapoints.as_byte[2]);
+    EEPROM.write(numOfDatapoints_b4_addr, numOfDatapoints.as_byte[3]);
+
     EEPROM.write(tempAvg_addr, tempAvg);
     EEPROM.write(tempMin_addr, tempMin);
     EEPROM.write(tempMax_addr, tempMax);
@@ -536,7 +567,7 @@ void loop() {
     EEPROM.write(moistureMin_addr, moistureMin); // addr 4
     EEPROM.write(moistureMax_addr, moistureMax); // addr 5
     EEPROM.write(numOfDetec_addr, numOfDetec); // addr 6
-    EEPROM.write(numOfDatapoints_addr, numOfDatapoints); // addr 7
+    //EEPROM.write(numOfDatapoints_addr, numOfDatapoints); // addr 7
     EEPROM.write(estabMinMax_addr, estabMinMax); // add 8, min and max have values
 
   }
@@ -544,7 +575,7 @@ void loop() {
     if (buildingSummary){
       // send summary
       // 0,13625,0,1,1,0,100,0,1481,13957,0,0,5,0,3
-      Serial.println("[GardenGuard]s|"+String(moistureLevel)+","+String(temperature)+","+String(pirEvents)+","+String(buzzerState)+","+String(buzzerOverride)+","+String(dry)+","+String(wet)+","+String(tempAvg)+","+String(tempMin)+","+String(tempMax)+","+String(moistureAvg)+","+String(moistureMin)+","+String(moistureMax)+","+String(numOfDetec)+","+String(numOfDatapoints));
+      Serial.println("[GardenGuard]s|"+String(moistureLevel)+","+String(temperature)+","+String(pirEvents)+","+String(buzzerState)+","+String(buzzerOverride)+","+String(dry)+","+String(wet)+","+String(tempAvg)+","+String(tempMin)+","+String(tempMax)+","+String(moistureAvg)+","+String(moistureMin)+","+String(moistureMax)+","+String(numOfDetec)+","+String(numOfDatapoints.as_long));
 
       // communicated with computer: clear summary and set to false
       buildingSummary = 0;
