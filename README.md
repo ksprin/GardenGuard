@@ -1,6 +1,6 @@
 # Garden Guard
 ECE 4440 Capstone Design, Fall 2025
-Department of Electrical and Computer Engineering at the University of Virginia
+<br>Department of Electrical and Computer Engineering at the University of Virginia
 
 # Team Members 
 Tessa Heick, Rowland Halsey Robinson, and Kayla Sprincis
